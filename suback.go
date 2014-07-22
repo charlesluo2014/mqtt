@@ -54,7 +54,7 @@ func (this *SubackMessage) ReturnCodes() []byte {
 func (this *SubackMessage) AddReturnCodes(ret []byte) error {
 	for _, c := range ret {
 		if c != QosAtMostOnce && c != QosAtLeastOnce && c != QosExactlyOnce && c != QosFailure {
-			return fmt.Errorf("suback/AddReturnCode: Invalid return code %d. Must be 0, 1, 2, 0x80.")
+			return fmt.Errorf("suback/AddReturnCode: Invalid return code %d. Must be 0, 1, 2, 0x80.", c)
 		}
 
 		this.returnCodes = append(this.returnCodes, c)
