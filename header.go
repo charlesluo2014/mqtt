@@ -121,14 +121,6 @@ func (this *fixedHeader) SetRemainingLength(remlen int32) error {
 	return nil
 }
 
-func (this *fixedHeader) Buffer() *bytes.Buffer {
-	return this.buf
-}
-
-func (this *fixedHeader) SetBuffer(buf *bytes.Buffer) {
-	this.buf = buf
-}
-
 func (this *fixedHeader) copy(src io.Reader) (int64, error) {
 	total, err := io.CopyN(this.buf, src, 1)
 	if err != nil {
