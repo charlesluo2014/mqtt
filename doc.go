@@ -13,7 +13,6 @@
 // limitations under the License.
 
 /*
-
 Package mqtt is a encoder/decoder library for MQTT 3.1 and 3.1.1 messages. You can
 find the MQTT specs at the following locations:
 
@@ -135,5 +134,4 @@ If you don't know what type of message is coming down the pipe, you can do somet
 
 
 */
-
 package mqtt
