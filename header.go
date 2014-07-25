@@ -90,7 +90,7 @@ func (this *fixedHeader) Decode(src io.Reader) (int, error) {
 // Name returns a string representation of the message type. Examples include
 // "PUBLISH", "SUBSCRIBE", and others. This is statically defined for each of
 // the message types and cannot be changed.
-func (this fixedHeader) Name() string {
+func (this *fixedHeader) Name() string {
 	return this.Type().Name()
 }
 
@@ -98,13 +98,13 @@ func (this fixedHeader) Name() string {
 // CONNECT message would return "Client request to connect to Server." These
 // descriptions are statically defined (copied from the MQTT spec) and cannot
 // be changed.
-func (this fixedHeader) Desc() string {
+func (this *fixedHeader) Desc() string {
 	return this.Type().Desc()
 }
 
 // Type returns the MessageType of the Message. The retured value should be one
 // of the constants defined for MessageType.
-func (this fixedHeader) Type() MessageType {
+func (this *fixedHeader) Type() MessageType {
 	return this.mtype
 }
 
@@ -123,12 +123,12 @@ func (this *fixedHeader) SetType(mtype MessageType) error {
 }
 
 // Flags returns the fixed header flags for this message.
-func (this fixedHeader) Flags() byte {
+func (this *fixedHeader) Flags() byte {
 	return this.flags
 }
 
 // RemainingLength returns the length of the non-fixed-header part of the message.
-func (this fixedHeader) RemainingLength() int32 {
+func (this *fixedHeader) RemainingLength() int32 {
 	return this.remlen
 }
 
