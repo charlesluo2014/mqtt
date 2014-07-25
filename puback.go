@@ -16,6 +16,7 @@ package mqtt
 
 import "io"
 
+// A PUBACK Packet is the response to a PUBLISH Packet with QoS level 1.
 type PubackMessage struct {
 	fixedHeader
 
@@ -24,6 +25,7 @@ type PubackMessage struct {
 
 var _ Message = (*PubackMessage)(nil)
 
+// NewPubackMessage creates a new PUBACK message.
 func NewPubackMessage() *PubackMessage {
 	msg := &PubackMessage{}
 	msg.SetType(PUBACK)
@@ -31,14 +33,19 @@ func NewPubackMessage() *PubackMessage {
 	return msg
 }
 
+// PacketId returns the ID of the packet.
 func (this *PubackMessage) PacketId() uint16 {
 	return this.packetId
 }
 
+// SetPacketId sets the ID of the packet.
 func (this *PubackMessage) SetPacketId(v uint16) {
 	this.packetId = v
 }
 
+// Decode reads from the io.Reader parameter until a full message is decoded, or
+// when io.Reader returns EOF or error. The first return value is the number of
+// bytes read from io.Reader. The second is error if Decode encounters any problems.
 func (this *PubackMessage) Decode(src io.Reader) (int, error) {
 	total := 0
 
@@ -56,6 +63,11 @@ func (this *PubackMessage) Decode(src io.Reader) (int, error) {
 	return total, nil
 }
 
+// Encode returns an io.Reader in which the encoded bytes can be read. The second
+// return value is the number of bytes encoded, so the caller knows how many bytes
+// there will be. If Encode returns an error, then the first two return values
+// should be considered invalid.
+// Any changes to the message after Encode() is called will invalidate the io.Reader.
 func (this *PubackMessage) Encode() (io.Reader, int, error) {
 	this.SetRemainingLength(2)
 

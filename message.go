@@ -19,36 +19,99 @@ import (
 	"io"
 )
 
+// MessageType is the type representing the MQTT packet types. In the MQTT spec,
+// MQTT control packet type is represented as a 4-bit unsigned value.
 type MessageType byte
 
+// Message is an interface defined for all MQTT message types.
 type Message interface {
+	// Name returns a string representation of the message type. Examples include
+	// "PUBLISH", "SUBSCRIBE", and others. This is statically defined for each of
+	// the message types and cannot be changed.
 	Name() string
+
+	// Desc returns a string description of the message type. For example, a
+	// CONNECT message would return "Client request to connect to Server." These
+	// descriptions are statically defined (copied from the MQTT spec) and cannot
+	// be changed.
 	Desc() string
+
+	// Type returns the MessageType of the Message. The retured value should be one
+	// of the constants defined for MessageType.
 	Type() MessageType
 
+	// Encode returns an io.Reader in which the encoded bytes can be read. The second
+	// return value is the number of bytes encoded, so the caller knows how many bytes
+	// there will be. If Encode returns an error, then the first two return values
+	// should be considered invalid.
 	Encode() (io.Reader, int, error)
+
+	// Decode reads from the io.Reader parameter until a full message is decoded, or
+	// when io.Reader returns EOF or error. The first return value is the number of
+	// bytes read from io.Reader. The second is error if Decode encounters any problems.
+	// For the CONNECT message, the error returned could be a ConnackReturnCode, so
+	// be sure to check that. Otherwise it's a generic error. If a generic error is
+	// returned, this Message should be considered invalid.
 	Decode(io.Reader) (int, error)
 }
 
 const (
+	// RESERVED is a reserved value and should be considered an invalid message type
 	RESERVED MessageType = iota
+
+	// CONNECT: Client to Server. Client request to connect to Server.
 	CONNECT
+
+	// CONNACK: Server to Client. Connect acknowledgement.
 	CONNACK
+
+	// PUBLISH: Client to Server, or Server to Client. Publish message.
 	PUBLISH
+
+	// PUBACK: Client to Server, or Server to Client. Publish acknowledgment for
+	// QoS 1 messages.
 	PUBACK
+
+	// PUBACK: Client to Server, or Server to Client. Publish received for QoS 2 messages.
+	// Assured delivery part 1.
 	PUBREC
+
+	// PUBREL: Client to Server, or Server to Client. Publish release for QoS 2 messages.
+	// Assured delivery part 1.
 	PUBREL
+
+	// PUBCOMP: Client to Server, or Server to Client. Publish complete for QoS 2 messages.
+	// Assured delivery part 3.
 	PUBCOMP
+
+	// SUBSCRIBE: Client to Server. Client subscribe request.
 	SUBSCRIBE
+
+	// SUBACK: Server to Client. Subscribe acknowledgement.
 	SUBACK
+
+	// UNSUBSCRIBE: Client to Server. Unsubscribe request.
 	UNSUBSCRIBE
+
+	// UNSUBACK: Server to Client. Unsubscribe acknowlegment.
 	UNSUBACK
+
+	// PINGREQ: Client to Server. PING request.
 	PINGREQ
+
+	// PINGRESP: Server to Client. PING response.
 	PINGRESP
+
+	// DISCONNECT: Client to Server. Client is disconnecting.
 	DISCONNECT
+
+	// RESERVED2 is a reserved value and should be considered an invalid message type.
 	RESERVED2
 )
 
+// Name returns the name of the message type. It should correspond to one of the
+// constant values defined for MessageType. It is statically defined and cannot
+// be changed.
 func (this MessageType) Name() string {
 	switch this {
 	case RESERVED:
@@ -88,6 +151,8 @@ func (this MessageType) Name() string {
 	return "UNKNOWN"
 }
 
+// Desc returns the description of the message type. It is statically defined (copied
+// from MQTT spec) and cannot be changed.
 func (this MessageType) Desc() string {
 	switch this {
 	case RESERVED:
@@ -127,6 +192,8 @@ func (this MessageType) Desc() string {
 	return "UNKNOWN"
 }
 
+// DefaultFlags returns the default flag values for the message type, as defined by
+// the MQTT spec.
 func (this MessageType) DefaultFlags() byte {
 	switch this {
 	case RESERVED:
@@ -166,6 +233,9 @@ func (this MessageType) DefaultFlags() byte {
 	return 0
 }
 
+// New creates a new message based on the message type. It is a shortcut to call
+// one of the New*Message functions. If an error is returned then the message type
+// is invalid.
 func (this MessageType) New() (Message, error) {
 	switch this {
 	case CONNECT:
@@ -201,6 +271,7 @@ func (this MessageType) New() (Message, error) {
 	return nil, fmt.Errorf("msgtype/NewMessage: Invalid message type %d", this)
 }
 
+// Valid returns a boolean indicating whether the message type is valid or not.
 func (this MessageType) Valid() bool {
 	return this > RESERVED && this < RESERVED2
 }

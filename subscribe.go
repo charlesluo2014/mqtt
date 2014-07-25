@@ -20,6 +20,12 @@ import (
 	"io"
 )
 
+// The SUBSCRIBE Packet is sent from the Client to the Server to create one or more
+// Subscriptions. Each Subscription registers a Client’s interest in one or more
+// Topics. The Server sends PUBLISH Packets to the Client in order to forward
+// Application Messages that were published to Topics that match these Subscriptions.
+// The SUBSCRIBE Packet also specifies (for each Subscription) the maximum QoS with
+// which the Server can send Application Messages to the Client.
 type SubscribeMessage struct {
 	fixedHeader
 
@@ -30,6 +36,7 @@ type SubscribeMessage struct {
 
 var _ Message = (*SubscribeMessage)(nil)
 
+// NewSubscribeMessage creates a new SUBSCRIBE message.
 func NewSubscribeMessage() *SubscribeMessage {
 	msg := &SubscribeMessage{}
 	msg.SetType(SUBSCRIBE)
@@ -37,19 +44,28 @@ func NewSubscribeMessage() *SubscribeMessage {
 	return msg
 }
 
+// PacketId returns the ID of the packet.
 func (this *SubscribeMessage) PacketId() uint16 {
 	return this.packetId
 }
 
+// SetPacketId sets the ID of the packet.
 func (this *SubscribeMessage) SetPacketId(v uint16) {
 	this.packetId = v
 }
 
+// Topics returns a list of topics sent by the Client.
 func (this *SubscribeMessage) Topics() [][]byte {
 	return this.topics
 }
 
-func (this *SubscribeMessage) AddTopic(topic []byte, qos byte) {
+// AddTopic adds a single topic to the message, along with the corresponding QoS.
+// An error is returned if QoS is invalid.
+func (this *SubscribeMessage) AddTopic(topic []byte, qos byte) error {
+	if !ValidQos(qos) {
+		return fmt.Errorf("Invalid QoS %d", qos)
+	}
+
 	var i int
 	var t []byte
 	var found bool
@@ -63,13 +79,17 @@ func (this *SubscribeMessage) AddTopic(topic []byte, qos byte) {
 
 	if found {
 		this.qos[i] = qos
-		return
+		return nil
 	}
 
 	this.topics = append(this.topics, topic)
 	this.qos = append(this.qos, qos)
+
+	return nil
 }
 
+// RemoveTopic removes a single topic from the list of existing ones in the message.
+// If topic does not exist it just does nothing.
 func (this *SubscribeMessage) RemoveTopic(topic []byte) {
 	var i int
 	var t []byte
@@ -88,6 +108,7 @@ func (this *SubscribeMessage) RemoveTopic(topic []byte) {
 	}
 }
 
+// TopicExists checks to see if a topic exists in the list.
 func (this *SubscribeMessage) TopicExists(topic []byte) bool {
 	for _, t := range this.topics {
 		if bytes.Equal(t, topic) {
@@ -98,6 +119,8 @@ func (this *SubscribeMessage) TopicExists(topic []byte) bool {
 	return false
 }
 
+// TopicQos returns the QoS level of a topic. If topic does not exist, QosFailure
+// is returned.
 func (this *SubscribeMessage) TopicQos(topic []byte) byte {
 	for i, t := range this.topics {
 		if bytes.Equal(t, topic) {
@@ -108,10 +131,14 @@ func (this *SubscribeMessage) TopicQos(topic []byte) byte {
 	return QosFailure
 }
 
+// Qos returns the list of QoS current in the message.
 func (this *SubscribeMessage) Qos() []byte {
 	return this.qos
 }
 
+// Decode reads from the io.Reader parameter until a full message is decoded, or
+// when io.Reader returns EOF or error. The first return value is the number of
+// bytes read from io.Reader. The second is error if Decode encounters any problems.
 func (this *SubscribeMessage) Decode(src io.Reader) (int, error) {
 	total := 0
 
@@ -151,6 +178,11 @@ func (this *SubscribeMessage) Decode(src io.Reader) (int, error) {
 	return total, nil
 }
 
+// Encode returns an io.Reader in which the encoded bytes can be read. The second
+// return value is the number of bytes encoded, so the caller knows how many bytes
+// there will be. If Encode returns an error, then the first two return values
+// should be considered invalid.
+// Any changes to the message after Encode() is called will invalidate the io.Reader.
 func (this *SubscribeMessage) Encode() (io.Reader, int, error) {
 	// packet ID
 	total := 2

@@ -19,6 +19,13 @@ import (
 	"io"
 )
 
+// After a Network Connection is established by a Client to a Server, the first Packet
+// sent from the Client to the Server MUST be a CONNECT Packet [MQTT-3.1.0-1].
+//
+// A Client can only send the CONNECT Packet once over a Network Connection. The Server
+// MUST process a second CONNECT Packet sent from a Client as a protocol violation and
+// disconnect the Client [MQTT-3.1.0-2].  See section 4.8 for information about
+// handling errors.
 type ConnectMessage struct {
 	fixedHeader
 
@@ -45,6 +52,7 @@ type ConnectMessage struct {
 
 var _ Message = (*ConnectMessage)(nil)
 
+// NewConnectMessage creates a new CONNECT message.
 func NewConnectMessage() *ConnectMessage {
 	msg := &ConnectMessage{}
 	msg.SetType(CONNECT)
@@ -52,6 +60,7 @@ func NewConnectMessage() *ConnectMessage {
 	return msg
 }
 
+// String returns a string representation of the CONNECT message
 func (this ConnectMessage) String() string {
 	return fmt.Sprintf("%v\nConnect Flags: %08b\nVersion: %d\nKeepAlive: %d\nClient ID: %s\nWill Topic: %s\nWill Message: %s\nUsername: %s\nPassword: %s\n",
 		this.fixedHeader,
@@ -66,10 +75,14 @@ func (this ConnectMessage) String() string {
 	)
 }
 
+// Version returns the the 8 bit unsigned value that represents the revision level
+// of the protocol used by the Client. The value of the Protocol Level field for
+// the version 3.1.1 of the protocol is 4 (0x04).
 func (this *ConnectMessage) Version() byte {
 	return this.version
 }
 
+// SetVersion sets the version value of the CONNECT message
 func (this *ConnectMessage) SetVersion(v byte) error {
 	if _, ok := SupportedVersions[v]; !ok {
 		return fmt.Errorf("connect/SetVersion: Invalid version number %d", v)
@@ -79,10 +92,15 @@ func (this *ConnectMessage) SetVersion(v byte) error {
 	return nil
 }
 
+// CleanSession returns the bit that specifies the handling of the Session state.
+// The Client and Server can store Session state to enable reliable messaging to
+// continue across a sequence of Network Connections. This bit is used to control
+// the lifetime of the Session state.
 func (this *ConnectMessage) CleanSession() bool {
 	return ((this.connectFlags >> 1) & 0x1) == 1
 }
 
+// SetCleanSession sets the bit that specifies the handling of the Session state.
 func (this *ConnectMessage) SetCleanSession(v bool) {
 	if v {
 		this.connectFlags |= 0x2 // 00000010
@@ -91,10 +109,16 @@ func (this *ConnectMessage) SetCleanSession(v bool) {
 	}
 }
 
+// WillFlag returns the bit that specifies whether a Will Message should be stored
+// on the server. If the Will Flag is set to 1 this indicates that, if the Connect
+// request is accepted, a Will Message MUST be stored on the Server and associated
+// with the Network Connection.
 func (this *ConnectMessage) WillFlag() bool {
 	return ((this.connectFlags >> 2) & 0x1) == 1
 }
 
+// SetWillFlag sets the bit that specifies whether a Will Message should be stored
+// on the server.
 func (this *ConnectMessage) SetWillFlag(v bool) {
 	if v {
 		this.connectFlags |= 0x4 // 00000100
@@ -103,10 +127,14 @@ func (this *ConnectMessage) SetWillFlag(v bool) {
 	}
 }
 
+// WillQos returns the two bits that specify the QoS level to be used when publishing
+// the Will Message.
 func (this *ConnectMessage) WillQos() byte {
 	return (this.connectFlags >> 3) & 0x3
 }
 
+// SetWillQos sets the two bits that specify the QoS level to be used when publishing
+// the Will Message.
 func (this *ConnectMessage) SetWillQos(qos byte) error {
 	if qos != QosAtMostOnce && qos != QosAtLeastOnce && qos != QosExactlyOnce {
 		return fmt.Errorf("connect/SetWillQos: Invalid QoS level %d", qos)
@@ -116,10 +144,14 @@ func (this *ConnectMessage) SetWillQos(qos byte) error {
 	return nil
 }
 
+// WillRetain returns the bit specifies if the Will Message is to be Retained when it
+// is published.
 func (this *ConnectMessage) WillRetain() bool {
 	return ((this.connectFlags >> 5) & 0x1) == 1
 }
 
+// SetWillRetain sets the bit specifies if the Will Message is to be Retained when it
+// is published.
 func (this *ConnectMessage) SetWillRetain(v bool) {
 	if v {
 		this.connectFlags |= 32 // 00100000
@@ -128,22 +160,14 @@ func (this *ConnectMessage) SetWillRetain(v bool) {
 	}
 }
 
-func (this *ConnectMessage) PasswordFlag() bool {
-	return ((this.connectFlags >> 6) & 0x1) == 1
-}
-
-func (this *ConnectMessage) SetPasswordFlag(v bool) {
-	if v {
-		this.connectFlags |= 64 // 01000000
-	} else {
-		this.connectFlags &= 191 // 10111111
-	}
-}
-
+// UsernameFlag returns the bit that specifies whether a user name is present in the
+// payload.
 func (this *ConnectMessage) UsernameFlag() bool {
 	return ((this.connectFlags >> 7) & 0x1) == 1
 }
 
+// SetUsernameFlag sets the bit that specifies whether a user name is present in the
+// payload.
 func (this *ConnectMessage) SetUsernameFlag(v bool) {
 	if v {
 		this.connectFlags |= 128 // 10000000
@@ -152,31 +176,61 @@ func (this *ConnectMessage) SetUsernameFlag(v bool) {
 	}
 }
 
+// PasswordFlag returns the bit that specifies whether a password is present in the
+// payload.
+func (this *ConnectMessage) PasswordFlag() bool {
+	return ((this.connectFlags >> 6) & 0x1) == 1
+}
+
+// SetPasswordFlag sets the bit that specifies whether a password is present in the
+// payload.
+func (this *ConnectMessage) SetPasswordFlag(v bool) {
+	if v {
+		this.connectFlags |= 64 // 01000000
+	} else {
+		this.connectFlags &= 191 // 10111111
+	}
+}
+
+// KeepAlive returns a time interval measured in seconds. Expressed as a 16-bit word,
+// it is the maximum time interval that is permitted to elapse between the point at
+// which the Client finishes transmitting one Control Packet and the point it starts
+// sending the next.
 func (this *ConnectMessage) KeepAlive() uint16 {
 	return this.keepAlive
 }
 
+// SetKeepAlive sets the time interval in which the server should keep the connection
+// alive.
 func (this *ConnectMessage) SetKeepAlive(v uint16) {
 	this.keepAlive = v
 }
 
+// ClientId returns an ID that identifies the Client to the Server. Each Client
+// connecting to the Server has a unique ClientId. The ClientId MUST be used by
+// Clients and by Servers to identify state that they hold relating to this MQTT
+// Session between the Client and the Server
 func (this *ConnectMessage) ClientId() []byte {
 	return this.clientId
 }
 
+// SetClientId sets an ID that identifies the Client to the Server.
 func (this *ConnectMessage) SetClientId(v []byte) error {
 	if len(v) > 0 && !ValidClientId(v) {
-		return ErrConnackIdentifierRejected
+		return ErrIdentifierRejected
 	}
 
 	this.clientId = v
 	return nil
 }
 
+// WillTopic returns the topic in which the Will Message should be published to.
+// If the Will Flag is set to 1, the Will Topic must be in the payload.
 func (this *ConnectMessage) WillTopic() []byte {
 	return this.willTopic
 }
 
+// SetWillTopic sets the topic in which the Will Message should be published to.
 func (this *ConnectMessage) SetWillTopic(v []byte) {
 	this.willTopic = v
 
@@ -187,10 +241,12 @@ func (this *ConnectMessage) SetWillTopic(v []byte) {
 	}
 }
 
+// WillMessage returns the Will Message that is to be published to the Will Topic.
 func (this *ConnectMessage) WillMessage() []byte {
 	return this.willMessage
 }
 
+// SetWillMessage sets the Will Message that is to be published to the Will Topic.
 func (this *ConnectMessage) SetWillMessage(v []byte) {
 	this.willMessage = v
 
@@ -201,10 +257,14 @@ func (this *ConnectMessage) SetWillMessage(v []byte) {
 	}
 }
 
+// Username returns the username from the payload. If the User Name Flag is set to 1,
+// this must be in the payload. It can be used by the Server for authentication and
+// authorization.
 func (this *ConnectMessage) Username() []byte {
 	return this.username
 }
 
+// SetUsername sets the username for authentication.
 func (this *ConnectMessage) SetUsername(v []byte) {
 	this.username = v
 
@@ -215,10 +275,14 @@ func (this *ConnectMessage) SetUsername(v []byte) {
 	}
 }
 
+// Password returns the password from the payload. If the Password Flag is set to 1,
+// this must be in the payload. It can be used by the Server for authentication and
+// authorization.
 func (this *ConnectMessage) Password() []byte {
 	return this.password
 }
 
+// SetPassword sets the username for authentication.
 func (this *ConnectMessage) SetPassword(v []byte) {
 	this.password = v
 
@@ -229,6 +293,17 @@ func (this *ConnectMessage) SetPassword(v []byte) {
 	}
 }
 
+// Decode reads from the io.Reader parameter until a full message is decoded, or
+// when io.Reader returns EOF or error. The first return value is the number of
+// bytes read from io.Reader. The second is error if Decode encounters any problems.
+//
+// For the CONNECT message, the error returned could be a ConnackReturnCode, so
+// be sure to check that. Otherwise it's a generic error. If a generic error is
+// returned, this Message should be considered invalid.
+//
+// Caller should call ValidConnackError(err) to see if the returned error is
+// a Connack error. If so, caller should send the Client back the corresponding
+// CONNACK message.
 func (this *ConnectMessage) Decode(src io.Reader) (int, error) {
 	total := 0
 
@@ -246,6 +321,11 @@ func (this *ConnectMessage) Decode(src io.Reader) (int, error) {
 	return total, nil
 }
 
+// Encode returns an io.Reader in which the encoded bytes can be read. The second
+// return value is the number of bytes encoded, so the caller knows how many bytes
+// there will be. If Encode returns an error, then the first two return values
+// should be considered invalid.
+// Any changes to the message after Encode() is called will invalidate the io.Reader.
 func (this *ConnectMessage) Encode() (io.Reader, int, error) {
 	if this.Type() != CONNECT {
 		return nil, 0, fmt.Errorf("connect/Encode: Invalid message type. Expecting %d, got %d", CONNECT, this.Type())
@@ -385,9 +465,9 @@ func (this *ConnectMessage) decodeMessage() (int, error) {
 	total += 1
 
 	if verstr, ok := SupportedVersions[this.version]; !ok {
-		return total, ErrConnackUnacceptableProtocolVersion
+		return total, ErrUnacceptableProtocolVersion
 	} else if verstr != string(this.protoName) {
-		return total, ErrConnackUnacceptableProtocolVersion
+		return total, ErrUnacceptableProtocolVersion
 	}
 
 	if this.connectFlags, err = this.buf.ReadByte(); err != nil {
@@ -423,14 +503,14 @@ func (this *ConnectMessage) decodeMessage() (int, error) {
 
 	// If the Client supplies a zero-byte ClientId, the Client MUST also set CleanSession to 1
 	if len(this.clientId) == 0 && !this.CleanSession() {
-		return total, ErrConnackIdentifierRejected
+		return total, ErrIdentifierRejected
 	}
 
 	// The ClientId must contain only characters 0-9, a-z, and A-Z
 	// We also support ClientId longer than 23 encoded bytes
 	// We do not support ClientId outside of the above characters
 	if len(this.clientId) > 0 && !ValidClientId(this.clientId) {
-		return total, ErrConnackIdentifierRejected
+		return total, ErrIdentifierRejected
 	}
 
 	if this.WillFlag() {

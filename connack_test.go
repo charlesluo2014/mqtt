@@ -30,8 +30,8 @@ func TestConnackMessageFields(t *testing.T) {
 	msg.SetSessionPresent(false)
 	assert.False(t, true, msg.SessionPresent(), "Error setting session present flag.")
 
-	msg.SetReturnCode(ErrConnackConnectionAccepted)
-	assert.Equal(t, true, ErrConnackConnectionAccepted, msg.ReturnCode(), "Error setting return code.")
+	msg.SetReturnCode(ConnectionAccepted)
+	assert.Equal(t, true, ConnectionAccepted, msg.ReturnCode(), "Error setting return code.")
 }
 
 func TestConnackMessageDecode(t *testing.T) {
@@ -52,7 +52,7 @@ func TestConnackMessageDecode(t *testing.T) {
 
 	assert.False(t, true, msg.SessionPresent(), "Error decoding session present flag.")
 
-	assert.Equal(t, true, ErrConnackConnectionAccepted, msg.ReturnCode(), "Error decoding return code.")
+	assert.Equal(t, true, ConnectionAccepted, msg.ReturnCode(), "Error decoding return code.")
 }
 
 // testing wrong message length
@@ -91,7 +91,7 @@ func TestConnackMessageDecode4(t *testing.T) {
 	msgBytes := []byte{
 		byte(CONNACK << 4),
 		2,
-		64, // <- wrong code
+		64, // <- wrong size
 		0,  // connection accepted
 	}
 
@@ -107,8 +107,8 @@ func TestConnackMessageDecode5(t *testing.T) {
 	msgBytes := []byte{
 		byte(CONNACK << 4),
 		2,
-		0, // <- wrong code
-		6, // connection accepted
+		0,
+		6, // <- wrong code
 	}
 
 	src := bytes.NewBuffer(msgBytes)
@@ -127,7 +127,7 @@ func TestConnackMessageEncode(t *testing.T) {
 	}
 
 	msg := NewConnackMessage()
-	msg.SetReturnCode(ErrConnackConnectionAccepted)
+	msg.SetReturnCode(ConnectionAccepted)
 	msg.SetSessionPresent(true)
 
 	dst, n, err := msg.Encode()

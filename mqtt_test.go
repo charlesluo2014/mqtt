@@ -1,11 +1,24 @@
 // Copyright (c) 2014 Dataence, LLC. All rights reserved.
-// Use of this source code is governed by the Apache 2.0 license.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package mqtt
 
 import (
 	"bytes"
 	"testing"
+
+	"github.com/dataence/assert"
 )
 
 var (
@@ -168,13 +181,15 @@ func TestQosCodes(t *testing.T) {
 }
 
 func TestConnackReturnCodes(t *testing.T) {
-	for i, ret := range ConnackReturnCodes {
-		if r, ok := ret.(ConnackReturnCode); !ok {
-			t.Errorf("Invalid return code type. Expecting type ConnackReturnCode, got something else")
-		} else if r.code != byte(i) {
-			t.Errorf("Incorrect return code in error. Expecting %d, got %d.", i, r.code)
-		}
-	}
+	assert.Equal(t, false, ErrUnacceptableProtocolVersion, ConnackCode(1).Error(), "Incorrect ConnackCode error value.")
+
+	assert.Equal(t, false, ErrIdentifierRejected, ConnackCode(2).Error(), "Incorrect ConnackCode error value.")
+
+	assert.Equal(t, false, ErrServerUnavailable, ConnackCode(3).Error(), "Incorrect ConnackCode error value.")
+
+	assert.Equal(t, false, ErrBadUsernameOrPassword, ConnackCode(4).Error(), "Incorrect ConnackCode error value.")
+
+	assert.Equal(t, false, ErrNotAuthorized, ConnackCode(5).Error(), "Incorrect ConnackCode error value.")
 }
 
 func TestFixedHeaderFlags(t *testing.T) {

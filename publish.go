@@ -19,6 +19,8 @@ import (
 	"io"
 )
 
+// A PUBLISH Control Packet is sent from a Client to a Server or from Server to a Client
+// to transport an Application Message.
 type PublishMessage struct {
 	fixedHeader
 
@@ -29,6 +31,7 @@ type PublishMessage struct {
 
 var _ Message = (*PublishMessage)(nil)
 
+// NewPublishMessage creates a new PUBLISH message.
 func NewPublishMessage() *PublishMessage {
 	msg := &PublishMessage{}
 	msg.SetType(PUBLISH)
@@ -41,10 +44,16 @@ func (this PublishMessage) String() string {
 		this.fixedHeader, this.topic, this.packetId, string(this.payload))
 }
 
+// Dup returns the value specifying the duplicate delivery of a PUBLISH Control Packet.
+// If the DUP flag is set to 0, it indicates that this is the first occasion that the
+// Client or Server has attempted to send this MQTT PUBLISH Packet. If the DUP flag is
+// set to 1, it indicates that this might be re-delivery of an earlier attempt to send
+// the Packet.
 func (this *PublishMessage) Dup() bool {
 	return ((this.flags >> 3) & 0x1) == 1
 }
 
+// SetDup sets the value specifying the duplicate delivery of a PUBLISH Control Packet.
 func (this *PublishMessage) SetDup(v bool) {
 	if v {
 		this.flags |= 0x8 // 00001000
@@ -53,10 +62,15 @@ func (this *PublishMessage) SetDup(v bool) {
 	}
 }
 
+// Retain returns the value of the RETAIN flag. This flag is only used on the PUBLISH
+// Packet. If the RETAIN flag is set to 1, in a PUBLISH Packet sent by a Client to a
+// Server, the Server MUST store the Application Message and its QoS, so that it can be
+// delivered to future subscribers whose subscriptions match its topic name.
 func (this *PublishMessage) Retain() bool {
 	return (this.flags & 0x1) == 1
 }
 
+// SetRetain sets the value of the RETAIN flag.
 func (this *PublishMessage) SetRetain(v bool) {
 	if v {
 		this.flags |= 0x1 // 00000001
@@ -65,10 +79,15 @@ func (this *PublishMessage) SetRetain(v bool) {
 	}
 }
 
+// QoS returns the field that indicates the level of assurance for delivery of an
+// Application Message. The values are QosAtMostOnce, QosAtLeastOnce and QosExactlyOnce.
 func (this *PublishMessage) QoS() byte {
 	return (this.flags >> 1) & 0x3
 }
 
+// SetQoS sets the field that indicates the level of assurance for delivery of an
+// Application Message. The values are QosAtMostOnce, QosAtLeastOnce and QosExactlyOnce.
+// An error is returned if the value is not one of these.
 func (this *PublishMessage) SetQoS(v byte) error {
 	if v != 0x0 && v != 0x1 && v != 0x2 {
 		return fmt.Errorf("publish/SetQoS: Invalid QoS %d.", v)
@@ -78,10 +97,14 @@ func (this *PublishMessage) SetQoS(v byte) error {
 	return nil
 }
 
+// Topic returns the the topic name that identifies the information channel to which
+// payload data is published.
 func (this *PublishMessage) Topic() []byte {
 	return this.topic
 }
 
+// SetTopic sets the the topic name that identifies the information channel to which
+// payload data is published. An error is returned if ValidTopic() is falbase.
 func (this *PublishMessage) SetTopic(v []byte) error {
 	if !ValidTopic(v) {
 		return fmt.Errorf("publish/SetTopic: Invalid topic name (%s). Must not be empty or contain wildcard characters", string(v))
@@ -91,22 +114,30 @@ func (this *PublishMessage) SetTopic(v []byte) error {
 	return nil
 }
 
+// PacketId returns the ID of the packet. It is only present in PUBLISH Packets where
+// the QoS level is 1 or 2.
 func (this *PublishMessage) PacketId() uint16 {
 	return this.packetId
 }
 
+// SetPacketId sets the ID of the packet.
 func (this *PublishMessage) SetPacketId(v uint16) {
 	this.packetId = v
 }
 
+// Payload returns the application message that's part of the PUBLISH message.
 func (this *PublishMessage) Payload() []byte {
 	return this.payload
 }
 
+// SetPayload sets the application message that's part of the PUBLISH message.
 func (this *PublishMessage) SetPayload(v []byte) {
 	this.payload = v
 }
 
+// Decode reads from the io.Reader parameter until a full message is decoded, or
+// when io.Reader returns EOF or error. The first return value is the number of
+// bytes read from io.Reader. The second is error if Decode encounters any problems.
 func (this *PublishMessage) Decode(src io.Reader) (int, error) {
 	total := 0
 
@@ -140,6 +171,11 @@ func (this *PublishMessage) Decode(src io.Reader) (int, error) {
 	return total, nil
 }
 
+// Encode returns an io.Reader in which the encoded bytes can be read. The second
+// return value is the number of bytes encoded, so the caller knows how many bytes
+// there will be. If Encode returns an error, then the first two return values
+// should be considered invalid.
+// Any changes to the message after Encode() is called will invalidate the io.Reader.
 func (this *PublishMessage) Encode() (io.Reader, int, error) {
 	if len(this.topic) == 0 {
 		return nil, 0, fmt.Errorf("publish/Encode: Topic name is empty.")

@@ -14,12 +14,15 @@
 
 package mqtt
 
+// The DISCONNECT Packet is the final Control Packet sent from the Client to the Server.
+// It indicates that the Client is disconnecting cleanly.
 type DisconnectMessage struct {
 	fixedHeader
 }
 
 var _ Message = (*DisconnectMessage)(nil)
 
+// NewDisconnectMessage creates a new DISCONNECT message.
 func NewDisconnectMessage() *DisconnectMessage {
 	msg := &DisconnectMessage{}
 	msg.SetType(DISCONNECT)

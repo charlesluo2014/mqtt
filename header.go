@@ -32,10 +32,16 @@ type fixedHeader struct {
 	flags  byte
 }
 
+// String returns a string representation of the message.
 func (this fixedHeader) String() string {
 	return fmt.Sprintf("Packet type: %s\nFlags: %08b\nRemaining Length: %d bytes\n", this.mtype.Name(), this.flags, this.remlen)
 }
 
+// Encode returns an io.Reader in which the encoded bytes can be read. The second
+// return value is the number of bytes encoded, so the caller knows how many bytes
+// there will be. If Encode returns an error, then the first two return values
+// should be considered invalid.
+// Any changes to the message after Encode() is called will invalidate the io.Reader.
 func (this *fixedHeader) Encode() (io.Reader, int, error) {
 	total := 0
 
@@ -63,6 +69,9 @@ func (this *fixedHeader) Encode() (io.Reader, int, error) {
 	return this.buf, total, nil
 }
 
+// Decode reads from the io.Reader parameter until a full message is decoded, or
+// when io.Reader returns EOF or error. The first return value is the number of
+// bytes read from io.Reader. The second is error if Decode encounters any problems.
 func (this *fixedHeader) Decode(src io.Reader) (int, error) {
 	this.resetBuf()
 
@@ -78,40 +87,54 @@ func (this *fixedHeader) Decode(src io.Reader) (int, error) {
 	return int(total), nil
 }
 
+// Name returns a string representation of the message type. Examples include
+// "PUBLISH", "SUBSCRIBE", and others. This is statically defined for each of
+// the message types and cannot be changed.
 func (this fixedHeader) Name() string {
 	return this.Type().Name()
 }
 
+// Desc returns a string description of the message type. For example, a
+// CONNECT message would return "Client request to connect to Server." These
+// descriptions are statically defined (copied from the MQTT spec) and cannot
+// be changed.
 func (this fixedHeader) Desc() string {
 	return this.Type().Desc()
 }
 
+// Type returns the MessageType of the Message. The retured value should be one
+// of the constants defined for MessageType.
 func (this fixedHeader) Type() MessageType {
 	return this.mtype
 }
 
+// SetType sets the message type of this message. It also correctly sets the
+// default flags for the message type. It returns an error if the type is invalid.
 func (this *fixedHeader) SetType(mtype MessageType) error {
-	if mtype == RESERVED || mtype == RESERVED2 {
+	if !mtype.Valid() {
 		return fmt.Errorf("header/SetType: Invalid control packet type %d", mtype)
 	}
 
 	this.mtype = mtype
 
-	if mtype != PUBLISH {
-		this.flags = mtype.DefaultFlags()
-	}
+	this.flags = mtype.DefaultFlags()
 
 	return nil
 }
 
+// Flags returns the fixed header flags for this message.
 func (this fixedHeader) Flags() byte {
 	return this.flags
 }
 
+// RemainingLength returns the length of the non-fixed-header part of the message.
 func (this fixedHeader) RemainingLength() int32 {
 	return this.remlen
 }
 
+// SetRemainingLength sets the length of the non-fixed-header part of the message.
+// It returns error if the length is greater than 268435455, which is the max
+// message length as defined by the MQTT spec.
 func (this *fixedHeader) SetRemainingLength(remlen int32) error {
 	if remlen > maxRemainingLength || remlen < 0 {
 		return fmt.Errorf("header/SetLength: Value (%d) out of bound (max %d, min 0)", remlen, maxRemainingLength)

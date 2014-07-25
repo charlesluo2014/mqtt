@@ -19,15 +19,23 @@ import (
 	"io"
 )
 
+// The CONNACK Packet is the packet sent by the Server in response to a CONNECT Packet
+// received from a Client. The first packet sent from the Server to the Client MUST
+// be a CONNACK Packet [MQTT-3.2.0-1].
+//
+// If the Client does not receive a CONNACK Packet from the Server within a reasonable
+// amount of time, the Client SHOULD close the Network Connection. A "reasonable" amount
+// of time depends on the type of application and the communications infrastructure.
 type ConnackMessage struct {
 	fixedHeader
 
 	sessionPresent bool
-	returnCode     error
+	returnCode     ConnackCode
 }
 
 var _ Message = (*ConnackMessage)(nil)
 
+// NewConnackMessage creates a new CONNACK message
 func NewConnackMessage() *ConnackMessage {
 	msg := &ConnackMessage{}
 	msg.SetType(CONNACK)
@@ -35,15 +43,18 @@ func NewConnackMessage() *ConnackMessage {
 	return msg
 }
 
+// String returns a string representation of the CONNACK message
 func (this ConnackMessage) String() string {
 	return fmt.Sprintf("%v\nSession Present: %t\nReturn code: %v\n",
 		this.fixedHeader, this.sessionPresent, this.returnCode)
 }
 
+// SessionPresent returns the session present flag value
 func (this *ConnackMessage) SessionPresent() bool {
 	return this.sessionPresent
 }
 
+// SetSessionPresent sets the value of the session present flag
 func (this *ConnackMessage) SetSessionPresent(v bool) {
 	if v {
 		this.sessionPresent = true
@@ -52,14 +63,19 @@ func (this *ConnackMessage) SetSessionPresent(v bool) {
 	}
 }
 
-func (this *ConnackMessage) ReturnCode() error {
+// ReturnCode returns the return code received for the CONNECT message. The return
+// type is an error
+func (this *ConnackMessage) ReturnCode() ConnackCode {
 	return this.returnCode
 }
 
-func (this *ConnackMessage) SetReturnCode(ret error) {
+func (this *ConnackMessage) SetReturnCode(ret ConnackCode) {
 	this.returnCode = ret
 }
 
+// Decode reads from the io.Reader parameter until a full message is decoded, or
+// when io.Reader returns EOF or error. The first return value is the number of
+// bytes read from io.Reader. The second is error if Decode encounters any problems.
 func (this *ConnackMessage) Decode(src io.Reader) (int, error) {
 	total := 0
 
@@ -93,11 +109,16 @@ func (this *ConnackMessage) Decode(src io.Reader) (int, error) {
 		return 0, fmt.Errorf("connack/Decode: Invalid CONNACK return code (%d)", b)
 	}
 
-	this.returnCode = ConnackReturnCodes[b]
+	this.returnCode = ConnackCode(b)
 
 	return total, nil
 }
 
+// Encode returns an io.Reader in which the encoded bytes can be read. The second
+// return value is the number of bytes encoded, so the caller knows how many bytes
+// there will be. If Encode returns an error, then the first two return values
+// should be considered invalid.
+// Any changes to the message after Encode() is called will invalidate the io.Reader.
 func (this *ConnackMessage) Encode() (io.Reader, int, error) {
 	// CONNACK remaining length fixed at 2 bytes
 	this.SetRemainingLength(2)
@@ -112,22 +133,16 @@ func (this *ConnackMessage) Encode() (io.Reader, int, error) {
 		b[0] = 1
 	}
 
-	retcode, ok := this.returnCode.(ConnackReturnCode)
-	if !ok {
-		return nil, 0, fmt.Errorf("connack/Encode: Invalid return code")
+	if this.returnCode > 5 {
+		return nil, 0, fmt.Errorf("connack/Encode: Invalid CONNACK return code (%d)", this.returnCode)
 	}
 
-	if retcode.code > 5 {
-		return nil, 0, fmt.Errorf("connack/Encode: Invalid CONNACK return code (%d)", retcode.code)
-	}
+	b[1] = this.returnCode.Value()
 
-	b[1] = retcode.code
-	var n int
-
-	if n, err = this.buf.Write(b[:]); err != nil {
+	n, err := this.buf.Write(b[:])
+	if err != nil {
 		return nil, 0, err
 	}
-
 	total += n
 
 	return this.buf, total, nil

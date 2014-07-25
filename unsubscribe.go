@@ -20,6 +20,7 @@ import (
 	"io"
 )
 
+// An UNSUBSCRIBE Packet is sent by the Client to the Server, to unsubscribe from topics.
 type UnsubscribeMessage struct {
 	fixedHeader
 
@@ -29,6 +30,7 @@ type UnsubscribeMessage struct {
 
 var _ Message = (*UnsubscribeMessage)(nil)
 
+// NewUnsubscribeMessage creates a new UNSUBSCRIBE message.
 func NewUnsubscribeMessage() *UnsubscribeMessage {
 	msg := &UnsubscribeMessage{}
 	msg.SetType(UNSUBSCRIBE)
@@ -36,18 +38,22 @@ func NewUnsubscribeMessage() *UnsubscribeMessage {
 	return msg
 }
 
+// PacketId returns the ID of the packet.
 func (this *UnsubscribeMessage) PacketId() uint16 {
 	return this.packetId
 }
 
+// SetPacketId sets the ID of the packet.
 func (this *UnsubscribeMessage) SetPacketId(v uint16) {
 	this.packetId = v
 }
 
+// Topics returns a list of topics sent by the Client.
 func (this *UnsubscribeMessage) Topics() [][]byte {
 	return this.topics
 }
 
+// AddTopic adds a single topic to the message.
 func (this *UnsubscribeMessage) AddTopic(topic []byte) {
 	if this.TopicExists(topic) {
 		return
@@ -56,6 +62,8 @@ func (this *UnsubscribeMessage) AddTopic(topic []byte) {
 	this.topics = append(this.topics, topic)
 }
 
+// RemoveTopic removes a single topic from the list of existing ones in the message.
+// If topic does not exist it just does nothing.
 func (this *UnsubscribeMessage) RemoveTopic(topic []byte) {
 	var i int
 	var t []byte
@@ -73,6 +81,7 @@ func (this *UnsubscribeMessage) RemoveTopic(topic []byte) {
 	}
 }
 
+// TopicExists checks to see if a topic exists in the list.
 func (this *UnsubscribeMessage) TopicExists(topic []byte) bool {
 	for _, t := range this.topics {
 		if bytes.Equal(t, topic) {
@@ -83,6 +92,9 @@ func (this *UnsubscribeMessage) TopicExists(topic []byte) bool {
 	return false
 }
 
+// Decode reads from the io.Reader parameter until a full message is decoded, or
+// when io.Reader returns EOF or error. The first return value is the number of
+// bytes read from io.Reader. The second is error if Decode encounters any problems.
 func (this *UnsubscribeMessage) Decode(src io.Reader) (int, error) {
 	total := 0
 
@@ -114,6 +126,11 @@ func (this *UnsubscribeMessage) Decode(src io.Reader) (int, error) {
 	return total, nil
 }
 
+// Encode returns an io.Reader in which the encoded bytes can be read. The second
+// return value is the number of bytes encoded, so the caller knows how many bytes
+// there will be. If Encode returns an error, then the first two return values
+// should be considered invalid.
+// Any changes to the message after Encode() is called will invalidate the io.Reader.
 func (this *UnsubscribeMessage) Encode() (io.Reader, int, error) {
 	// packet ID
 	total := 2
@@ -123,8 +140,6 @@ func (this *UnsubscribeMessage) Encode() (io.Reader, int, error) {
 	}
 
 	this.SetRemainingLength(int32(total))
-
-	total = 0
 
 	_, total, err := this.fixedHeader.Encode()
 	if err != nil {
