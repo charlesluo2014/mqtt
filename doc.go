@@ -13,11 +13,11 @@
 // limitations under the License.
 
 /*
-Package mqtt is a encoder/decoder library for MQTT 3.1 and 3.1.1 messages. You can
+Package mqtt is an encoder/decoder library for MQTT 3.1 and 3.1.1 messages. You can
 find the MQTT specs at the following locations:
 
-* 3.1.1 - http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/
-* 3.1 - http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html
+	3.1.1 - http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/
+	3.1 - http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html
 
 From the spec:
 
@@ -28,10 +28,10 @@ From the spec:
 	of Things (IoT) contexts where a small code footprint is required and/or network
 	bandwidth is at a premium.
 
+	The MQTT protocol works by exchanging a series of MQTT messages in a defined way.
 	The protocol runs over TCP/IP, or over other network protocols that provide
 	ordered, lossless, bi-directional connections.
 
-	The MQTT protocol works by exchanging a series of MQTT messages in a defined way.
 
 There are two main items to take note in this package. The first is
 
@@ -110,23 +110,27 @@ To receive a CONNECT message from a connection, we can do:
 	// Decode the message by reading from conn
 	n, err := msg.Decode(conn)
 
-If you don't know what type of message is coming down the pipe, you can do something like
+If you don't know what type of message is coming down the pipe, you can do something like this:
 
 	// Create a buffered IO reader for the connection
 	br := bufio.NewReader(conn)
 
+	// Peek at the first byte, which contains the message type
 	b, err := br.Peek(1)
 	if err != nil {
 		return err
 	}
 
+	// Extract the type from the first byte
 	t := MessageType(b[0] >> 4)
 
+	// Create a new message
 	msg, err := t.New()
 	if err != nil {
 		return err
 	}
 
+	// Decode it from the bufio.Reader
 	n, err := msg.Decode(br)
 	if err != nil {
 		return err
